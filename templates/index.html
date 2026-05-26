@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transport Delay Predictor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --card:      #161b22;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --accent:    #58a6ff;
+      --success:   #3fb950;
+      --warning:   #d29922;
+      --danger:    #f85149;
+      --orange:    #e3702a;
+      --radius:    10px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    header {
+      padding: 28px 32px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header-left h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #58a6ff 0%, #a371f7 50%, #3fb950 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+    .header-left p {
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin-top: 2px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(63, 185, 80, 0.15);
+      border: 1px solid rgba(63, 185, 80, 0.4);
+      color: var(--success);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .badge::before {
+      content: '';
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Main layout ──────────────────────────────────────────────────────── */
+    main {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+      padding: 28px 32px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    @media (max-width: 860px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    /* ── Cards ────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+    }
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 18px;
+    }
+
+    /* ── Form elements ────────────────────────────────────────────────────── */
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    .field label span { color: var(--text); font-weight: 600; }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      transition: border-color .2s;
+      appearance: none;
+    }
+    input[type="number"]:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+    }
+
+    /* number input arrows */
+    input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+
+    /* select arrow */
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: '▾';
+      position: absolute;
+      right: 10px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      font-size: 0.75rem;
+    }
+
+    /* Slider */
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .slider-row input { flex: 1; }
+    .slider-val {
+      min-width: 34px;
+      text-align: right;
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 0.95rem;
+    }
+
+    /* Toggle (Yes/No) */
+    .toggle-row {
+      display: flex;
+      gap: 8px;
+    }
+    .toggle-btn {
+      flex: 1;
+      padding: 7px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .toggle-btn.active {
+      border-color: var(--accent);
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Day of week buttons */
+    .dow-row {
+      display: flex;
+      gap: 5px;
+    }
+    .dow-btn {
+      flex: 1;
+      padding: 6px 2px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all .2s;
+      text-align: center;
+    }
+    .dow-btn.active {
+      border-color: var(--accent);
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* ── Predict button ───────────────────────────────────────────────────── */
+    .btn-predict {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, #1f6feb, #388bfd);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-predict:hover { opacity: 0.9; }
+    .btn-predict:active { transform: scale(0.98); }
+    .btn-predict:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .btn-predict.loading .spinner { display: block; }
+    .btn-predict.loading .btn-text { opacity: 0.7; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result card ──────────────────────────────────────────────────────── */
+    .result-card {
+      margin-bottom: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .result-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .delay-number {
+      font-size: 3.2rem;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--text);
+    }
+    .delay-number span {
+      font-size: 1.2rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+    .severity-badge {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .sev-on-time   { background: rgba(63,185,80,.18);  color: var(--success); border: 1px solid rgba(63,185,80,.4); }
+    .sev-minor     { background: rgba(210,153,34,.18); color: var(--warning); border: 1px solid rgba(210,153,34,.4); }
+    .sev-moderate  { background: rgba(227,112,42,.18); color: var(--orange);  border: 1px solid rgba(227,112,42,.4); }
+    .sev-major     { background: rgba(248,81,73,.18);  color: var(--danger);  border: 1px solid rgba(248,81,73,.4); }
+
+    .confidence-row {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .confidence-row strong {
+      color: var(--text);
+    }
+
+    /* ── Gauge ────────────────────────────────────────────────────────────── */
+    .gauge-wrap { position: relative; }
+    .gauge-track {
+      height: 14px;
+      border-radius: 7px;
+      background: linear-gradient(
+        to right,
+        var(--success) 0%,
+        var(--success) 12.5%,
+        var(--warning) 12.5%,
+        var(--warning) 37.5%,
+        var(--orange)  37.5%,
+        var(--orange)  75%,
+        var(--danger)  75%,
+        var(--danger)  100%
+      );
+      opacity: 0.25;
+    }
+    .gauge-fill {
+      position: absolute;
+      top: 0; left: 0;
+      height: 14px;
+      border-radius: 7px;
+      width: 0%;
+      transition: width .8s cubic-bezier(.4,0,.2,1), background .5s;
+      background: var(--success);
+    }
+    .gauge-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .gauge-needle {
+      position: absolute;
+      top: -3px;
+      width: 4px; height: 20px;
+      background: #fff;
+      border-radius: 2px;
+      transform: translateX(-50%);
+      transition: left .8s cubic-bezier(.4,0,.2,1);
+      left: 0%;
+      box-shadow: 0 0 6px rgba(255,255,255,.5);
+    }
+
+    /* ── Chart area ───────────────────────────────────────────────────────── */
+    .chart-card { margin-bottom: 22px; }
+    .chart-container { height: 220px; }
+
+    /* ── Stats row ────────────────────────────────────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 600px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1.1;
+    }
+    .stat-label {
+      font-size: 0.74rem;
+      color: var(--muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Placeholder text ─────────────────────────────────────────────────── */
+    .placeholder-text {
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 28px 0;
+    }
+    .placeholder-text svg {
+      display: block;
+      margin: 0 auto 10px;
+      opacity: 0.35;
+    }
+
+    /* ── Divider ─────────────────────────────────────────────────────────── */
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Transport Delay Predictor</h1>
+    <p>Real-time ML predictions powered by Random Forest — weather &amp; schedule analysis</p>
+  </div>
+  <div class="badge">Model Ready</div>
+</header>
+
+<main>
+  <!-- ═══════════════════ LEFT PANEL ═══════════════════ -->
+  <aside>
+    <div class="card">
+      <div class="card-title">Journey Parameters</div>
+
+      <!-- Temperature -->
+      <div class="field">
+        <label>Temperature (°C)</label>
+        <input type="number" id="temperature" value="18" min="-10" max="45" step="0.5" />
+      </div>
+
+      <!-- Precipitation -->
+      <div class="field">
+        <label>Precipitation (mm)</label>
+        <input type="number" id="precipitation" value="0" min="0" max="50" step="0.5" />
+      </div>
+
+      <!-- Wind Speed -->
+      <div class="field">
+        <label>Wind Speed (km/h)</label>
+        <input type="number" id="wind_speed" value="12" min="0" max="100" step="1" />
+      </div>
+
+      <!-- Visibility -->
+      <div class="field">
+        <label>Visibility (km)</label>
+        <input type="number" id="visibility" value="10" min="0" max="20" step="0.5" />
+      </div>
+
+      <!-- Is Event toggle -->
+      <div class="field">
+        <label>Is There an Event Nearby?</label>
+        <div class="toggle-row">
+          <button class="toggle-btn" id="event-no" onclick="setEvent(0)">No</button>
+          <button class="toggle-btn" id="event-yes" onclick="setEvent(1)">Yes</button>
+        </div>
+      </div>
+
+      <!-- Event Type -->
+      <div class="field">
+        <label>Event Type</label>
+        <div class="select-wrap">
+          <select id="event_type">
+            <option value="0">None</option>
+            <option value="1">Concert</option>
+            <option value="2">Sports</option>
+            <option value="3">Festival</option>
+            <option value="4">Marathon</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Hour slider -->
+      <div class="field">
+        <label>Hour of Day — <span id="hour-label">12:00</span></label>
+        <div class="slider-row">
+          <input type="range" id="hour" min="0" max="23" value="12"
+                 oninput="updateHourLabel(this.value)" />
+          <span class="slider-val" id="hour-val">12</span>
+        </div>
+      </div>
+
+      <!-- Day of Week -->
+      <div class="field">
+        <label>Day of Week</label>
+        <div class="dow-row" id="dow-row">
+          <button class="dow-btn active" onclick="setDay(0,this)">Mon</button>
+          <button class="dow-btn" onclick="setDay(1,this)">Tue</button>
+          <button class="dow-btn" onclick="setDay(2,this)">Wed</button>
+          <button class="dow-btn" onclick="setDay(3,this)">Thu</button>
+          <button class="dow-btn" onclick="setDay(4,this)">Fri</button>
+          <button class="dow-btn" onclick="setDay(5,this)">Sat</button>
+          <button class="dow-btn" onclick="setDay(6,this)">Sun</button>
+        </div>
+      </div>
+
+      <button class="btn-predict" id="predict-btn" onclick="predict()">
+        <div class="spinner" id="spinner"></div>
+        <span class="btn-text">Predict Delay</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════ RIGHT PANEL ══════════════════ -->
+  <section>
+
+    <!-- Result card -->
+    <div class="card result-card" id="result-card">
+      <div class="card-title">Prediction Result</div>
+
+      <div id="result-placeholder" class="placeholder-text">
+        <svg width="40" height="40" fill="none" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" stroke="#8b949e" stroke-width="1.5"/>
+          <path d="M12 7v5l3 3" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Configure parameters and click <strong style="color:var(--text)">Predict Delay</strong> to see results.
+      </div>
+
+      <div id="result-content" style="display:none">
+        <div class="result-top">
+          <div>
+            <div class="delay-number" id="delay-display">0 <span>min</span></div>
+            <div class="confidence-row" id="confidence-display" style="margin-top:4px">
+              Confidence range: <strong>— min</strong>
+            </div>
+          </div>
+          <div class="severity-badge sev-on-time" id="severity-badge">On Time</div>
+        </div>
+
+        <div class="gauge-wrap" id="gauge-wrap">
+          <div class="gauge-track"></div>
+          <div class="gauge-fill" id="gauge-fill"></div>
+          <div class="gauge-needle" id="gauge-needle"></div>
+        </div>
+        <div class="gauge-labels">
+          <span>0</span><span>5</span><span>15</span><span>30</span><span>40+ min</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="section-divider" />
+
+    <!-- Feature importance chart -->
+    <div class="card chart-card">
+      <div class="card-title">Feature Importance</div>
+      <div class="chart-container">
+        <canvas id="importanceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-avg">–</div>
+        <div class="stat-label">Avg Delay</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-ontime">–</div>
+        <div class="stat-label">On-Time %</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-max">–</div>
+        <div class="stat-label">Max Delay</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-routes">–</div>
+        <div class="stat-label">Routes</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+  // ── State ──────────────────────────────────────────────────────────────────
+  let selectedDay = 0;
+  let isEvent = 0;
+  let importanceChart = null;
+
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  function setEvent(val) {
+    isEvent = val;
+    document.getElementById('event-no').classList.toggle('active', val === 0);
+    document.getElementById('event-yes').classList.toggle('active', val === 1);
+    const sel = document.getElementById('event_type');
+    sel.disabled = val === 0;
+    if (val === 0) sel.value = '0';
+    sel.style.opacity = val === 0 ? '0.45' : '1';
+  }
+
+  function setDay(idx, btn) {
+    selectedDay = idx;
+    document.querySelectorAll('.dow-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function updateHourLabel(val) {
+    const h = parseInt(val);
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const display = h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h-12}:00 PM`;
+    document.getElementById('hour-label').textContent = display;
+    document.getElementById('hour-val').textContent = h;
+  }
+
+  // ── Gauge animation ────────────────────────────────────────────────────────
+  const MAX_GAUGE = 40; // minutes = 100% width
+
+  function getSeverityClass(sev) {
+    const map = {
+      'On Time': 'sev-on-time',
+      'Minor Delay': 'sev-minor',
+      'Moderate Delay': 'sev-moderate',
+      'Major Delay': 'sev-major',
+    };
+    return map[sev] || 'sev-on-time';
+  }
+
+  function getGaugeColor(minutes) {
+    if (minutes < 5)  return 'var(--success)';
+    if (minutes < 15) return 'var(--warning)';
+    if (minutes < 30) return 'var(--orange)';
+    return 'var(--danger)';
+  }
+
+  function animateGauge(minutes) {
+    const pct = Math.min(100, (minutes / MAX_GAUGE) * 100);
+    const fill = document.getElementById('gauge-fill');
+    const needle = document.getElementById('gauge-needle');
+    fill.style.width = pct + '%';
+    fill.style.background = getGaugeColor(minutes);
+    needle.style.left = pct + '%';
+  }
+
+  function showResult(data) {
+    document.getElementById('result-placeholder').style.display = 'none';
+    document.getElementById('result-content').style.display = '';
+
+    document.getElementById('delay-display').innerHTML =
+      `${data.delay_minutes} <span>min</span>`;
+    document.getElementById('confidence-display').innerHTML =
+      `Confidence range: <strong>${data.confidence_low} – ${data.confidence_high} min</strong>`;
+
+    const badge = document.getElementById('severity-badge');
+    badge.textContent = data.severity;
+    badge.className = 'severity-badge ' + getSeverityClass(data.severity);
+
+    animateGauge(data.delay_minutes);
+  }
+
+  // ── Predict ────────────────────────────────────────────────────────────────
+  async function predict() {
+    const btn = document.getElementById('predict-btn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    const hour = parseInt(document.getElementById('hour').value);
+    const isWeekend = selectedDay >= 5 ? 1 : 0;
+    const isRushHour = ((hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19)) ? 1 : 0;
+
+    const payload = {
+      temperature:         parseFloat(document.getElementById('temperature').value) || 0,
+      precipitation:       parseFloat(document.getElementById('precipitation').value) || 0,
+      wind_speed:          parseFloat(document.getElementById('wind_speed').value) || 0,
+      visibility:          parseFloat(document.getElementById('visibility').value) || 10,
+      is_event:            isEvent,
+      event_type_encoded:  parseInt(document.getElementById('event_type').value) || 0,
+      hour:                hour,
+      day_of_week:         selectedDay,
+      is_rush_hour:        isRushHour,
+      is_weekend:          isWeekend,
+    };
+
+    try {
+      const res = await fetch(API_BASE + '/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Prediction failed');
+      const data = await res.json();
+      showResult(data);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  // ── Feature importance chart ───────────────────────────────────────────────
+  const FEATURE_LABELS = {
+    temperature:          'Temperature',
+    precipitation:        'Precipitation',
+    wind_speed:           'Wind Speed',
+    visibility:           'Visibility',
+    is_event:             'Is Event',
+    event_type_encoded:   'Event Type',
+    hour:                 'Hour',
+    day_of_week:          'Day of Week',
+    is_rush_hour:         'Rush Hour',
+    is_weekend:           'Weekend',
+  };
+
+  async function loadImportance() {
+    try {
+      const res = await fetch(API_BASE + '/api/feature-importance');
+      const data = await res.json();
+      const labels = data.map(d => FEATURE_LABELS[d.feature] || d.feature);
+      const values = data.map(d => (d.importance * 100).toFixed(2));
+
+      const ctx = document.getElementById('importanceChart').getContext('2d');
+      if (importanceChart) importanceChart.destroy();
+
+      importanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Importance (%)',
+            data: values,
+            backgroundColor: labels.map((_, i) => {
+              const alpha = 1 - i * 0.07;
+              return `rgba(88, 166, 255, ${Math.max(0.3, alpha)})`;
+            }),
+            borderColor: 'rgba(88, 166, 255, 0.6)',
+            borderWidth: 1,
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ` ${ctx.parsed.x}%`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(48,54,61,0.8)' },
+              ticks: { color: '#8b949e', font: { size: 11 } },
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#e6edf3', font: { size: 11 } },
+            },
+          },
+        },
+      });
+    } catch (err) {
+      console.error('Failed to load feature importance', err);
+    }
+  }
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  async function loadStats() {
+    try {
+      const res = await fetch(API_BASE + '/api/stats');
+      const d = await res.json();
+      document.getElementById('stat-avg').textContent    = d.avg_delay + ' min';
+      document.getElementById('stat-ontime').textContent = d.on_time_pct + '%';
+      document.getElementById('stat-max').textContent    = d.max_delay + ' min';
+      document.getElementById('stat-routes').textContent = d.routes_count;
+    } catch (err) {
+      console.error('Failed to load stats', err);
+    }
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  setEvent(0);  // initialise toggle state
+  updateHourLabel(12);
+
+  window.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    loadImportance();
+  });
+</script>
+</body>
+</html>
