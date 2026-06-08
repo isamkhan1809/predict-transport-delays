@@ -18,7 +18,7 @@
 
 <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=20&pause=1000&color=4FC3F7&center=true&vCenter=true&width=700&lines=Weather.+Events.+Rush+Hour.+The+Engine+Sees+It+All+%F0%9F%9A%8C;XGBoost+Delay+Predictor+%E2%80%94+R%C2%B2+%3D+0.70;Rain+%2B+Rush+Hour+%3D+Maximum+Delay+Signal;Predict+Delays+Before+They+Happen+%E2%8F%B1%EF%B8%8F" alt="Typing SVG" />
 
-<img src="https://media.giphy.com/media/goagKg6WfWYh0NPlb1/giphy.gif" width="360" />
+<img src="https://media.giphy.com/media/ojA8Oeh7LEWpGeJNgN/giphy.gif" width="360" />
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![XGBoost](https://img.shields.io/badge/XGBoost-Champion-F7931E?style=for-the-badge)](https://xgboost.readthedocs.io)
