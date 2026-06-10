@@ -26,10 +26,10 @@
 ```
   ╔══════════════════════════════════════════════════════════════╗
   ║                                                              ║
-  ║   Every morning, millions board buses and trains.           ║
-  ║   Every delay ripples — missed meetings, late arrivals.     ║
+  ║   Every morning, millions board buses and trains.            ║
+  ║   Every delay ripples — missed meetings, late arrivals.      ║
   ║                                                              ║
-  ║       This model sees the delay coming before it does.      ║
+  ║       This model sees the delay coming before it does.       ║
   ║                                                              ║
   ╚══════════════════════════════════════════════════════════════╝
 ```
@@ -90,18 +90,18 @@ Predicted delay: 5.4 minutes
 │                                                             │
 │  WEATHER              TIME                 EVENTS           │
 │  ─────────            ────────             ──────           │
-│  Precipitation ─┐     Rush hour   ─┐       Concert ─┐      │
-│  Temperature    │     Hour of day  │       Sports   │      │
-│  Wind speed     ├────▶ Day of week ├──────▶ None    ├──────▶│
-│  Visibility     │     Weekend      │                │      │
-│                 └─────────────────┘────────────────┘       │
-│                                   │                        │
-│                                   ▼                        │
-│              ┌────────────────────────────────────┐        │
-│              │  Linear Regression   R² ~ 0.41     │        │
-│              │  Random Forest       R² ~ 0.63     │        │
-│              │  XGBoost ✦           R² ~ 0.70     │        │
-│              └────────────────────────────────────┘        │
+│  Precipitation ─┐     Rush hour   ─┐       Concert ─┐       │
+│  Temperature    │     Hour of day  │       Sports   │       │
+│  Wind speed     ├───▶ Day of week  ├──────▶ None    ├──────▶│
+│  Visibility     │     Weekend      │                │       │
+│                 └──────────────────┘────────────────┘       │
+│                                   │                         │
+│                                   ▼                         │
+│              ┌────────────────────────────────────┐         │
+│              │  Linear Regression   R² ~ 0.41     │         │
+│              │  Random Forest       R² ~ 0.63     │         │
+│              │  XGBoost ✦           R² ~ 0.70     │         │
+│              └────────────────────────────────────┘         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
