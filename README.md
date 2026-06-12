@@ -95,8 +95,8 @@ Predicted delay: 5.4 minutes
 │  Wind speed     ├───▶ Day of week  ├──────▶ None    ├──────▶│
 │  Visibility     │     Weekend      │                │       │
 │                 └──────────────────┘────────────────┘       │
-│                                   │                         │
-│                                   ▼                         │
+│                                    │                        │
+│                                    ▼                        │
 │              ┌────────────────────────────────────┐         │
 │              │  Linear Regression   R² ~ 0.41     │         │
 │              │  Random Forest       R² ~ 0.63     │         │
